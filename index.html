@@ -68,17 +68,19 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .c{height:var(--rh);background:var(--card);box-shadow:inset -1px -1px 0 var(--line);cursor:pointer}
 .c.d{box-shadow:inset -1px -1px 0 var(--card)}
 .c:active{filter:brightness(.9)}
+.c.rs{display:grid;place-items:center;font-size:13px;background:var(--soft)}
 .c.np{cursor:default;background:repeating-linear-gradient(135deg,var(--soft) 0 4px,var(--card) 4px 8px)}
 .gst{height:var(--rh);display:grid;place-items:center;font-family:var(--rounded);font-weight:700;font-size:14.5px;color:var(--sub);border-bottom:1px solid var(--line)}
 .gst .ring{width:31px;height:31px;border-radius:50%;border:2.5px solid;display:grid;place-items:center;color:var(--text)}
-.gfn,.gf,.gfs{position:sticky;bottom:0;z-index:3;background:var(--card);height:34px;border-top:1px solid var(--line);display:grid;place-items:center;font-family:var(--rounded);font-weight:700;font-size:12.5px;color:var(--sub)}
-.gfn{left:0;z-index:6;border-right:1px solid var(--line);place-items:center start;padding-left:10px;font-family:inherit;font-weight:600;font-size:12px}
 
-.bb{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 14px;background:var(--card);border-top:1px solid var(--line)}
+.bb{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--card);border-top:1px solid var(--line)}
 .addb{font-weight:650;font-size:14.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;height:36px}
 .addb svg{width:18px;height:18px}
 .zoom{display:flex;align-items:center;gap:8px;color:var(--sub);font-size:12px}
-.zoom input{width:112px;accent-color:var(--ink)}
+.zoom input{width:84px;min-width:0;accent-color:var(--ink)}
+.restb{font-weight:650;font-size:14px;height:36px;padding:0 12px;border-radius:18px;background:var(--soft);white-space:nowrap}
+.restb.on{background:var(--ink);color:var(--onink)}
+.rbanner{flex:none;text-align:center;font-size:12.5px;font-weight:600;padding:7px 12px;background:var(--soft);border-top:1px solid var(--line)}
 
 .empty{text-align:center;padding:60px 24px;color:var(--sub);background:var(--card);flex:1}
 .empty .big{font-size:52px;margin-bottom:8px}
@@ -129,6 +131,9 @@ nav{display:flex;background:var(--card);border-top:1px solid var(--line);padding
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:12px;background:var(--card);border-radius:18px}
 .cal .dl{text-align:center;font-size:11.5px;color:var(--sub);font-weight:600;padding-bottom:2px}
 .cd{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:600;font-family:var(--rounded)}
+.seg.two{grid-template-columns:repeat(2,1fr);background:var(--card);margin:0 0 12px}
+.seg.two button.on{background:var(--ink);color:var(--onink);box-shadow:none}
+.cd.rest{background:var(--soft);font-size:13px;box-shadow:0 0 0 1.5px var(--line) inset}
 .cd.off{color:var(--sub);opacity:.35;pointer-events:none}
 .cd.tod{box-shadow:0 0 0 2px var(--ink) inset}
 .cd.done.tod{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink)}
@@ -219,7 +224,7 @@ const STORE='chaque_jour_v1';
 function uid(){return 'h'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function seed(){
   const t=key(todayD());
-  return {v:2,theme:'auto',zoom:38,logs:{},habits:[
+  return {v:2,theme:'auto',zoom:38,logs:{},skips:{},habits:[
     {id:uid(),name:"Boire 2 litres d'eau",emoji:'💧',color:'blue',days:[0,1,2,3,4,5,6],created:t},
     {id:uid(),name:'Lire 10 minutes',emoji:'📚',color:'purple',days:[0,1,2,3,4,5,6],created:t},
     {id:uid(),name:'Faire du sport',emoji:'🏃',color:'green',days:[0,2,4],created:t}
@@ -236,13 +241,20 @@ function normalize(o){
     days:(Array.isArray(h.days)?h.days:[0,1,2,3,4,5,6]).map(Number).filter(n=>n>=0&&n<=6),
     created:dk.test(h.created)?h.created:key(todayD())
   }));
-  const ids=new Set(habits.map(h=>h.id)),logs={};
-  Object.keys(o.logs).forEach(k=>{
-    if(!dk.test(k)||!Array.isArray(o.logs[k])) return;
-    const a=o.logs[k].filter(id=>ids.has(id)); if(a.length) logs[k]=a;
-  });
+  const ids=new Set(habits.map(h=>h.id));
+  const clean=src=>{
+    const out={};
+    if(!src||typeof src!=='object') return out;
+    Object.keys(src).forEach(k=>{
+      if(!dk.test(k)||!Array.isArray(src[k])) return;
+      const a=src[k].filter(id=>ids.has(id)); if(a.length) out[k]=a;
+    });
+    return out;
+  };
+  const logs=clean(o.logs),skips=clean(o.skips);
+  Object.keys(skips).forEach(k=>{ if(logs[k]){ skips[k]=skips[k].filter(id=>!logs[k].includes(id)); if(!skips[k].length) delete skips[k]; } });
   const z=Number(o.zoom);
-  return {v:2,theme:['light','dark'].includes(o.theme)?o.theme:'auto',zoom:(z>=24&&z<=60)?z:38,habits,logs};
+  return {v:2,theme:['light','dark'].includes(o.theme)?o.theme:'auto',zoom:(z>=24&&z<=60)?z:38,habits,logs,skips};
 }
 function load(){
   try{const r=localStorage.getItem(STORE); if(r) return normalize(JSON.parse(r));}catch(e){}
@@ -252,13 +264,14 @@ let S=load();
 function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
 save();
 
-const ui={tab:'grid',sheet:null,detailId:null,cal:null,draft:null,cf:null,todayKey:key(todayD())};
+const ui={tab:'grid',restMode:false,calMode:'done',sheet:null,detailId:null,cal:null,draft:null,cf:null,todayKey:key(todayD())};
 const gridScroll={x:null,y:0};
 
 /* ---------- logique ---------- */
 const isDone=(h,k)=>(S.logs[k]||[]).includes(h.id);
 const inPlan=(h,d)=>h.days.includes(wd(d));
-const sched=(h,k)=>k>=h.created&&inPlan(h,parse(k));
+const isSkip=(h,k)=>(S.skips[k]||[]).includes(h.id);
+const sched=(h,k)=>k>=h.created&&inPlan(h,parse(k))&&!isSkip(h,k);
 function dayProgress(k){
   const hs=S.habits.filter(h=>sched(h,k));
   return {total:hs.length,done:hs.filter(h=>isDone(h,k)).length};
@@ -268,7 +281,7 @@ function calcStreaks(h){
   let cur=0,d=new Date(t);
   for(let i=0;i<3660;i++){
     const k=key(d); if(k<h.created) break;
-    if(inPlan(h,d)){ if(isDone(h,k)) cur++; else if(k!==tk) break; }
+    if(inPlan(h,d)){ if(isDone(h,k)) cur++; else if(isSkip(h,k)){} else if(k!==tk) break; }
     d=addDays(d,-1);
   }
   let best=0,run=0; d=parse(h.created);
@@ -276,6 +289,7 @@ function calcStreaks(h){
     const k=key(d);
     if(inPlan(h,d)){
       if(isDone(h,k)){run++;if(run>best)best=run}
+      else if(isSkip(h,k)){}
       else if(k!==tk) run=0;
     }
     d=addDays(d,1);
@@ -298,11 +312,13 @@ function streakColors(h,startKey){
       run++;
       const t=streakT(run),c=rampHSL(h.color,t);
       out[k]={bg:rampCSS(h.color,t),fg:c[2]>62?'#14213d':'#ffffff'};
-    }else if(inPlan(h,d)&&k!==tk) run=0;
+    }else if(isSkip(h,k)){}
+    else if(inPlan(h,d)&&k!==tk) run=0;
     d=addDays(d,1);
   }
   return out;
 }
+const nSkip=h=>Object.keys(S.skips).reduce((n,k)=>n+(S.skips[k].includes(h.id)?1:0),0);
 function firstKey(h){
   let f=h.created;
   Object.keys(S.logs).forEach(k=>{if(k<f&&S.logs[k].includes(h.id)) f=k;});
@@ -311,12 +327,17 @@ function firstKey(h){
 function isDark(){
   return S.theme==='dark'||(S.theme!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
 }
-function toggle(id,k){
+function mark(id,k,mode){
   if(k>key(todayD())) return;
   const h=S.habits.find(x=>x.id===id); if(!h) return;
-  const arr=S.logs[k]||(S.logs[k]=[]); const i=arr.indexOf(id);
-  if(i>=0){arr.splice(i,1); if(!arr.length) delete S.logs[k];}
-  else{arr.push(id); if(k<h.created) h.created=k;}
+  const has=o=>(o[k]||[]).includes(id);
+  const rm=o=>{if(o[k]){o[k]=o[k].filter(x=>x!==id); if(!o[k].length) delete o[k];}};
+  const add=o=>{(o[k]||(o[k]=[])).push(id);};
+  if(mode==='rest'){
+    if(has(S.skips)) rm(S.skips); else{rm(S.logs); add(S.skips);}
+  }else{
+    if(has(S.logs)) rm(S.logs); else{rm(S.skips); add(S.logs); if(k<h.created) h.created=k;}
+  }
   save(); refresh();
 }
 function toast(msg){
@@ -355,6 +376,7 @@ function viewGrid(){
     for(let i=0;i<nd;i++){
       const k=keys[i],c=colors[k];
       if(c) g+='<div class="c d" style="background:'+c.bg+'" data-action="cell" data-id="'+x.id+'" data-k="'+k+'"></div>';
+      else if(isSkip(x,k)) g+='<div class="c rs" data-action="cell" data-id="'+x.id+'" data-k="'+k+'">💤</div>';
       else if(!x.days.includes(wds[i])) g+='<div class="c np"></div>';
       else g+='<div class="c" data-action="cell" data-id="'+x.id+'" data-k="'+k+'"></div>';
     }
@@ -363,13 +385,13 @@ function viewGrid(){
     g+='<div class="gst first">'+v(st.cur)+'</div><div class="gst">'+v(st.best)+'</div><div class="gst">'+totalDone(x)+'</div>';
   });
 
-  g+='<div class="gfn">faites</div>';
-  for(let i=0;i<nd;i++){const n=(S.logs[keys[i]]||[]).length; g+='<div class="gf">'+(n||'')+'</div>';}
-  g+='<div class="gfs"></div><div class="gfs"></div><div class="gfs"></div></div>';
+  g+='</div>';
 
   h+='<div class="gs" id="gs" style="--cw:'+S.zoom+'px">'+g+'</div>'
-   +'<div class="bb"><button class="addb" data-action="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nouvelle habitude</button>'
-   +'<label class="zoom"><span>Zoom</span><input id="zoom" type="range" min="24" max="60" step="1" value="'+S.zoom+'" aria-label="Largeur des cases"></label></div>';
+   +(ui.restMode?'<div class="rbanner">💤 Mode repos : touche une case pour marquer un jour de repos</div>':'')
+   +'<div class="bb"><button class="addb" data-action="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Habitude</button>'
+   +'<button class="restb'+(ui.restMode?' on':'')+'" data-action="restmode" aria-pressed="'+ui.restMode+'">💤 Repos</button>'
+   +'<label class="zoom"><input id="zoom" type="range" min="24" max="60" step="1" value="'+S.zoom+'" aria-label="Largeur des cases"></label></div>';
   return h;
 }
 
@@ -379,7 +401,8 @@ function viewSettings(){
   +'<div class="grp"><h3>Apparence</h3><p>Suit le mode de ton iPhone par défaut.</p><div class="seg">'
   +['auto:Auto','light:Clair','dark:Sombre'].map(s=>{const [v,l]=s.split(':');return '<button class="'+(th===v?'on':'')+'" data-action="theme" data-v="'+v+'">'+l+'</button>'}).join('')
   +'</div></div>'
-  +'<div class="grp"><h3>Lire la grille</h3><p>Chaque case cochée devient plus foncée à mesure que ta série s\'allonge. Les cases hachurées sont des jours où l\'habitude n\'est pas prévue. Un cercle autour d\'un chiffre veut dire que ta série en cours est ton record.</p></div>'
+  +'<div class="grp"><h3>Lire la grille</h3><p>Chaque case cochée devient plus foncée à mesure que ta série s\'allonge. Les cases hachurées sont des jours où l\'habitude n\'est pas prévue. Un cercle autour d\'un chiffre veut dire que ta série en cours est ton record.</p>'
+  +'<p>Le bouton 💤 Repos sert à marquer un jour de repos (pour le sport, par exemple) : il ne casse pas ta série, ne l\'augmente pas et n\'entre pas dans ton taux de réussite. Active-le, touche les cases voulues, puis désactive-le. Pour annuler un repos, touche à nouveau la case en mode repos.</p></div>'
   +'<div class="grp"><h3>Sauvegarde</h3><p>Tes données sont enregistrées sur cet iPhone, dans Safari. Fais une sauvegarde de temps en temps : copie le texte ci-dessous et garde-le dans Notes.</p>'
   +'<textarea id="bk" spellcheck="false" placeholder="Ta sauvegarde apparaîtra ici. Pour restaurer, colle-la ici."></textarea>'
   +'<div class="row2"><button class="btn alt" data-action="export">Générer</button><button class="btn alt" data-action="copy">Copier</button><button class="btn" data-action="import">Restaurer</button></div></div>'
@@ -415,18 +438,19 @@ function detailHTML(h){
   let c='<div class="cal">'+DL.map(l=>'<div class="dl">'+l+'</div>').join('');
   for(let i=0;i<off;i++) c+='<div class="cd blank"></div>';
   for(let n=1;n<=nDays;n++){
-    const d=new Date(y,m,n,12),k=key(d),plan=inPlan(h,d),col=colors[k],fut=k>tk;
-    c+='<button class="cd'+(col?' done':'')+(plan||col?'':' off')+(k===tk?' tod':'')+'"'
+    const d=new Date(y,m,n,12),k=key(d),plan=inPlan(h,d),col=colors[k],fut=k>tk,rs=!col&&isSkip(h,k);
+    c+='<button class="cd'+(col?' done':'')+(rs?' rest':'')+(plan||col||rs?'':' off')+(k===tk?' tod':'')+'"'
       +(col?' style="background:'+col.bg+';color:'+col.fg+'"':'')
-      +' data-action="calday" data-k="'+k+'" data-id="'+h.id+'"'+(fut?' disabled':'')+'>'+n+'</button>';
+      +' data-action="calday" data-k="'+k+'" data-id="'+h.id+'"'+(fut?' disabled':'')+'>'+(rs?'💤':n)+'</button>';
   }
   c+='</div>';
   const days=h.days.length===7?'Tous les jours':h.days.map(i=>['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][i]).join(', ');
   return '<div class="grab"></div><div class="in">'
    +'<div class="sh-head"><div class="hico" style="background:'+rampCSS(h.color,.35,.2)+'">'+esc(h.emoji)+'</div><h2>'+esc(h.name)+'</h2></div>'
    +'<div class="tiles"><div class="tile"><b>'+st.cur+'</b><span>série en cours</span></div><div class="tile"><b>'+st.best+'</b><span>record</span></div><div class="tile"><b>'+rate(h,30)+'%</b><span>réussite sur 30 jours</span></div></div>'
+   +'<div class="seg two"><button class="'+(ui.calMode==='done'?'on':'')+'" data-action="calmode" data-v="done">✓ Fait</button><button class="'+(ui.calMode==='rest'?'on':'')+'" data-action="calmode" data-v="rest">💤 Repos</button></div>'
    +'<div class="cal-h"><button data-action="calprev" aria-label="Mois précédent">‹</button><span>'+MONTHS[m]+' '+y+'</span><button data-action="calnext" aria-label="Mois suivant">›</button></div>'+c
-   +'<p class="hint">'+days+' · '+totalDone(h)+' validation'+(totalDone(h)>1?'s':'')+' · touche un jour pour le cocher ou le décocher</p>'
+   +'<p class="hint">'+days+' · '+totalDone(h)+' validation'+(totalDone(h)>1?'s':'')+(nSkip(h)?' · '+nSkip(h)+' jour'+(nSkip(h)>1?'s':'')+' de repos':'')+' · choisis « Fait » ou « Repos », puis touche un jour</p>'
    +'<div class="sh-actions"><button class="btn alt" data-action="edit" data-id="'+h.id+'">Modifier</button><button class="btn alt" data-action="close">Fermer</button></div></div>';
 }
 function formHTML(){
@@ -453,7 +477,7 @@ function renderSheet(){
     sh.innerHTML='<div class="grab"></div><div class="in"><div class="cf-msg">'+esc(ui.cf.msg)+'</div><div class="sh-actions"><button class="btn alt" data-action="close">Annuler</button><button class="btn danger" data-action="cfok">'+esc(ui.cf.label||'Confirmer')+'</button></div></div>';
   }
 }
-function openDetail(id){const t=todayD(); ui.detailId=id; ui.cal={y:t.getFullYear(),m:t.getMonth()}; openSheet('detail');}
+function openDetail(id){const t=todayD(); ui.calMode='done'; ui.detailId=id; ui.cal={y:t.getFullYear(),m:t.getMonth()}; openSheet('detail');}
 function openForm(id){
   const h=id&&S.habits.find(x=>x.id===id);
   ui.draft=h?{id:h.id,name:h.name,emoji:h.emoji,color:h.color,days:h.days.slice()}
@@ -479,14 +503,16 @@ document.addEventListener('click',e=>{
   const a=el.dataset.action,id=el.dataset.id,k=el.dataset.k,v=el.dataset.v;
   switch(a){
     case 'tab': ui.tab=el.dataset.tab; render(); break;
-    case 'cell': toggle(id,k); break;
+    case 'cell': mark(id,k,ui.restMode?'rest':'done'); break;
+    case 'restmode': ui.restMode=!ui.restMode; render(); break;
+    case 'calmode': ui.calMode=v; renderSheet(); break;
     case 'open': openDetail(id); break;
     case 'new': openForm(null); break;
     case 'edit': openForm(id); break;
     case 'close': closeSheet(); break;
     case 'calprev': ui.cal.m--; if(ui.cal.m<0){ui.cal.m=11;ui.cal.y--} renderSheet(); break;
     case 'calnext': ui.cal.m++; if(ui.cal.m>11){ui.cal.m=0;ui.cal.y++} renderSheet(); break;
-    case 'calday': toggle(id,k); break;
+    case 'calday': mark(id,k,ui.calMode); break;
     case 'pickemo': ui.draft.emoji=v; renderSheet(); break;
     case 'pickcol': ui.draft.color=v; renderSheet(); break;
     case 'pickday': {const i=+v,ix=ui.draft.days.indexOf(i); if(ix>=0) ui.draft.days.splice(ix,1); else ui.draft.days.push(i); ui.draft.days.sort(); renderSheet(); break;}
@@ -503,7 +529,7 @@ document.addEventListener('click',e=>{
       const h=S.habits.find(x=>x.id===id); if(!h) return;
       confirmBox('Supprimer « '+h.name+' » et tout son historique ?','Supprimer',()=>{
         S.habits=S.habits.filter(x=>x.id!==id);
-        Object.keys(S.logs).forEach(d=>{S.logs[d]=S.logs[d].filter(x=>x!==id); if(!S.logs[d].length) delete S.logs[d];});
+        [S.logs,S.skips].forEach(o=>Object.keys(o).forEach(d=>{o[d]=o[d].filter(x=>x!==id); if(!o[d].length) delete o[d];}));
         save(); closeSheet(); render(); toast('Habitude supprimée');
       }); break;
     }
@@ -517,7 +543,7 @@ document.addEventListener('click',e=>{
       confirmBox('Remplacer tes données actuelles par cette sauvegarde ?','Restaurer',()=>{S=o;save();applyTheme();closeSheet();gridScroll.x=null;render();toast('Données restaurées');});
       break;
     }
-    case 'wipe': confirmBox('Effacer toutes tes habitudes et ton historique ? Cette action est définitive.','Tout effacer',()=>{S={v:2,theme:S.theme,zoom:S.zoom,habits:[],logs:{}};save();closeSheet();render();toast('Données effacées');}); break;
+    case 'wipe': confirmBox('Effacer toutes tes habitudes et ton historique ? Cette action est définitive.','Tout effacer',()=>{S={v:2,theme:S.theme,zoom:S.zoom,habits:[],logs:{},skips:{}};save();closeSheet();render();toast('Données effacées');}); break;
   }
 });
 document.addEventListener('input',e=>{
